@@ -117,9 +117,7 @@ class Application(tk.Frame):
         )
 
     def load_csv_files(self):
-        self.csv_files = filedialog.askopenfiles(
-            initialdir="/home/swhite/vbox_share/John_Yi_projects/multiplex_heatmaps/clean"
-        )
+        self.csv_files = filedialog.askopenfiles()
         if len(self.csv_files) == 0:
             return
 
