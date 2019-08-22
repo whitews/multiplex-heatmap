@@ -184,12 +184,11 @@ if __name__ == "__main__":
     screen_height = root.winfo_screenheight()
 
     if screen_height > 2000:
-        scaling = 2.0
+        tk_scaling = 2.0
     else:
-        scaling = 1.0
+        tk_scaling = 1.0
 
-    print(scaling)
-    root.tk.call('tk', 'scaling', scaling)
+    root.tk.call('tk', 'scaling', tk_scaling)
 
-    app = Application(root, scaling)
+    app = Application(root, tk_scaling)
     root.mainloop()
