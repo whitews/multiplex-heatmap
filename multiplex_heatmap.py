@@ -1,5 +1,7 @@
+import io
 import matplotlib
 import matplotlib.pyplot as plt
+from PIL import Image, ImageTk
 import seaborn as sns
 import pandas as pd
 import tkinter as tk
@@ -8,7 +10,6 @@ from tkinter import filedialog
 import ttkthemes as themed_tk
 
 matplotlib.use("TkAgg")
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 BACKGROUND_COLOR = '#ededed'
 WINDOW_WIDTH = 720
@@ -28,16 +29,23 @@ class Application(tk.Frame):
             width=int(WINDOW_WIDTH * scaling),
             height=int(WINDOW_HEIGHT * scaling)
         )
+        # self.master.maxsize(
+        #     width=int(WINDOW_WIDTH * scaling),
+        #     height=int(WINDOW_HEIGHT * scaling)
+        # )
         self.master.config(bg=BACKGROUND_COLOR)
         self.master.title("Multiplex Heat Map")
 
         self.csv_files = []
         self.data = None
         self.sort_by_column = tk.StringVar(self.master)
-        self.heat_map_fig = None
+        self.pan_start_x = None
+        self.pan_start_y = None
+        self.pil_image = None
+        self.tk_image = None
 
-        main_frame = tk.Frame(self.master, bg=BACKGROUND_COLOR)
-        main_frame.pack(
+        self.main_frame = tk.Frame(self.master, bg=BACKGROUND_COLOR)
+        self.main_frame.pack(
             fill='both',
             expand=True,
             anchor='n',
@@ -45,7 +53,7 @@ class Application(tk.Frame):
             pady=0
         )
 
-        file_chooser_frame = tk.Frame(main_frame, bg=BACKGROUND_COLOR)
+        file_chooser_frame = tk.Frame(self.main_frame, bg=BACKGROUND_COLOR)
         file_chooser_frame.pack(
             fill=tk.X,
             expand=False,
@@ -107,14 +115,44 @@ class Application(tk.Frame):
             pady=PAD_MEDIUM
         )
 
-        self.bottom_frame = tk.Frame(main_frame, bg=BACKGROUND_COLOR)
+        self.bottom_frame = tk.Frame(self.main_frame, bg=BACKGROUND_COLOR)
         self.bottom_frame.pack(
-            fill='both',
+            fill=tk.BOTH,
             expand=True,
             anchor='n',
             padx=PAD_LARGE,
             pady=0
         )
+
+        self.canvas = tk.Canvas(self.bottom_frame)
+
+        self.scrollbar_v = ttk.Scrollbar(
+            self.bottom_frame,
+            orient=tk.VERTICAL
+        )
+        self.scrollbar_h = ttk.Scrollbar(
+            self.bottom_frame,
+            orient=tk.HORIZONTAL
+        )
+        self.scrollbar_v.config(command=self.canvas.yview)
+        self.scrollbar_h.config(command=self.canvas.xview)
+
+        self.canvas.config(yscrollcommand=self.scrollbar_v.set)
+        self.canvas.config(xscrollcommand=self.scrollbar_h.set)
+
+        self.scrollbar_v.pack(side=tk.RIGHT, fill=tk.Y)
+        self.scrollbar_h.pack(side=tk.BOTTOM, fill=tk.X)
+        self.canvas.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
+
+        self.canvas.bind("<ButtonPress-1>", self.on_pan_button_press)
+        self.canvas.bind("<B1-Motion>", self.pan_image)
+        self.canvas.bind("<ButtonRelease-1>", self.on_pan_button_release)
+        self.canvas.bind("<ButtonPress-2>", self.on_pan_button_press)
+        self.canvas.bind("<B2-Motion>", self.pan_image)
+        self.canvas.bind("<ButtonRelease-2>", self.on_pan_button_release)
+        self.canvas.bind("<ButtonPress-3>", self.on_pan_button_press)
+        self.canvas.bind("<B3-Motion>", self.pan_image)
+        self.canvas.bind("<ButtonRelease-3>", self.on_pan_button_release)
 
     def load_csv_files(self):
         self.csv_files = filedialog.askopenfiles()
@@ -133,7 +171,13 @@ class Application(tk.Frame):
         sample_filter = df.Sample.str.contains(del_pattern)
         df = df[~sample_filter]
 
-        df = df.groupby("Sample").mean()
+        if "Population" in df:
+            df = df.set_index(["Sample", "Population"])
+            self.sort_option['values'] = ['Sample', 'Population', 'mean']
+        else:
+            # if there are more than 1 row for a sample, average the rows
+            # also sets index to "Sample"
+            df = df.groupby(["Sample", "Population"]).mean()
 
         df_norm_col = (df - df.min()) / (df.max() - df.min())
         df_norm_col['mean'] = df_norm_col.mean(axis=1)
@@ -145,26 +189,55 @@ class Application(tk.Frame):
 
         if sort_column == 'Sample':
             df = self.data.sort_values("Sample")
+        elif sort_column == 'Population':
+            df = self.data.sort_values("Population")
         elif sort_column == "mean":
             df = self.data.sort_values("mean", ascending=False)
         else:
             df = self.data
 
-        for widget in self.bottom_frame.winfo_children():
-            widget.destroy()
-
-        self.heat_map_fig = plt.figure(figsize=(14, 18))
+        # half inch per row and column, plus some space for the text
+        plt.figure(
+            figsize=((0.5 * self.data.shape[1]) + 2.0, (0.5 * self.data.shape[0]))
+        )
         heat_map_ax = sns.heatmap(
-            df,
+            df[df.columns[~df.columns.isin(['mean'])]],  # exclude mean col from plot
             cmap='bwr',
             cbar_kws={"aspect": 80}
         )
         heat_map_ax.set_ylim((self.data.shape[0], 0))
         plt.tight_layout()
 
-        canvas = FigureCanvasTkAgg(self.heat_map_fig, master=self.bottom_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        self.pil_image = Image.open(buf)
+        self.tk_image = ImageTk.PhotoImage(self.pil_image)
+
+        width, height = self.pil_image.size
+        self.canvas.delete("all")
+        self.canvas.config(scrollregion=(0, 0, width, height))
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.tk_image)
+        self.canvas.update()
+
+    def on_pan_button_press(self, event):
+        self.canvas.config(cursor='fleur')
+
+        # starting position for panning
+        self.pan_start_x = int(self.canvas.canvasx(event.x))
+        self.pan_start_y = int(self.canvas.canvasy(event.y))
+
+    def pan_image(self, event):
+        self.canvas.scan_dragto(
+            event.x - self.pan_start_x,
+            event.y - self.pan_start_y,
+            gain=1
+        )
+
+    # noinspection PyUnusedLocal
+    def on_pan_button_release(self, event):
+        self.canvas.config(cursor='')
 
     def save_heat_map_image(self):
         save_file = filedialog.asksaveasfilename(
@@ -174,7 +247,7 @@ class Application(tk.Frame):
         if save_file is None:
             return
 
-        self.heat_map_fig.savefig(save_file, bbox_inches="tight")
+        self.pil_image.save(save_file)
 
 
 if __name__ == "__main__":
