@@ -1,3 +1,4 @@
+Pillow
 matplotlib
 seaborn
 numpy
