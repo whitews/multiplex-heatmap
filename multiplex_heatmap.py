@@ -202,7 +202,7 @@ class Application(tk.Frame):
         else:
             # if there are more than 1 row for a sample, average the rows
             # also sets index to "Sample"
-            df = df.groupby(["Sample", "Population"]).mean()
+            df = df.groupby(["Sample"]).mean()
 
         df_norm_col = (df - df.min()) / (df.max() - df.min())
         df_norm_col['mean'] = df_norm_col.mean(axis=1)
