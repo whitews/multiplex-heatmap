@@ -42,6 +42,7 @@ class Application(tk.Frame):
         )
         self.master.config(bg=BACKGROUND_COLOR)
         self.master.title("Multiplex Heat Map")
+        self.master.protocol("WM_DELETE_WINDOW", self.quit)
 
         self.csv_files = []
         self.data = None
@@ -171,6 +172,9 @@ class Application(tk.Frame):
         self.canvas.bind("<ButtonPress-3>", self.on_pan_button_press)
         self.canvas.bind("<B3-Motion>", self.pan_image)
         self.canvas.bind("<ButtonRelease-3>", self.on_pan_button_release)
+
+    def quit(self):
+        quit()
 
     # noinspection PyUnusedLocal
     def toggle_colormap_option(self, event):
