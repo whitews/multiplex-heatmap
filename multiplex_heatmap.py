@@ -53,7 +53,7 @@ class Application(tk.Frame):
         self.current_colormap = tk.StringVar(self.master)
         self.current_colormap.set('bwr')
 
-        self.master.bind("<Control-m>", self.toggle_cmap_option)
+        self.master.bind("<Control-m>", self.toggle_colormap_option)
 
         self.main_frame = tk.Frame(self.master, bg=BACKGROUND_COLOR)
         self.main_frame.pack(
@@ -172,7 +172,8 @@ class Application(tk.Frame):
         self.canvas.bind("<B3-Motion>", self.pan_image)
         self.canvas.bind("<ButtonRelease-3>", self.on_pan_button_release)
 
-    def toggle_cmap_option(self, event):
+    # noinspection PyUnusedLocal
+    def toggle_colormap_option(self, event):
         if self.colormap_option.winfo_ismapped():
             self.colormap_option.pack_forget()
         else:
@@ -271,6 +272,8 @@ class Application(tk.Frame):
         if save_file is None:
             return
 
+        if save_file is None or save_file == '':
+            return
         self.pil_image.save(save_file)
 
 
