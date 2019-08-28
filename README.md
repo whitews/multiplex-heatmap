@@ -12,10 +12,11 @@ A small GUI utility to generate heat map plots from multiplex CSV data
    mkdir envs
    ```
 
-1. Create a virtual environment using Python 3
+1. Change to the 'envs' directory and create a virtual environment using Python 3
    
    ```
-   virtualenv -p python3 py3-multiplex-heatmap
+   cd envs
+   python3 -m venv py3-multiplex-heatmap
    ```   
   
 1. Activate the new environment
