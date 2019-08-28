@@ -184,6 +184,7 @@ class Application(tk.Frame):
         if len(self.csv_files) == 0:
             return
 
+        self.canvas.delete("all")
         self.process_csv_files()
 
     def process_csv_files(self):
