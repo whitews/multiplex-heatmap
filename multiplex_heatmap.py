@@ -18,6 +18,17 @@ PAD_SMALL = 2
 PAD_MEDIUM = 4
 PAD_LARGE = 8
 
+COLOR_MAPS = [
+    'bwr', 'coolwarm',
+    'viridis', 'plasma', 'inferno', 'magma', 'cividis',
+    'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+    'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
+    'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn',
+    'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu',
+    'RdYlBu', 'RdYlGn', 'Spectral', 'seismic',
+    'gist_rainbow', 'rainbow', 'jet'
+]
+
 
 class Application(tk.Frame):
 
@@ -29,10 +40,6 @@ class Application(tk.Frame):
             width=int(WINDOW_WIDTH * scaling),
             height=int(WINDOW_HEIGHT * scaling)
         )
-        # self.master.maxsize(
-        #     width=int(WINDOW_WIDTH * scaling),
-        #     height=int(WINDOW_HEIGHT * scaling)
-        # )
         self.master.config(bg=BACKGROUND_COLOR)
         self.master.title("Multiplex Heat Map")
 
@@ -43,6 +50,10 @@ class Application(tk.Frame):
         self.pan_start_y = None
         self.pil_image = None
         self.tk_image = None
+        self.current_colormap = tk.StringVar(self.master)
+        self.current_colormap.set('bwr')
+
+        self.master.bind("<Control-m>", self.toggle_cmap_option)
 
         self.main_frame = tk.Frame(self.master, bg=BACKGROUND_COLOR)
         self.main_frame.pack(
@@ -100,6 +111,13 @@ class Application(tk.Frame):
         self.sort_option['values'] = ['Sample', 'mean']
         self.sort_option.pack(side=tk.LEFT, fill='x', expand=False)
 
+        self.colormap_option = ttk.Combobox(
+            file_chooser_button_frame,
+            textvariable=self.current_colormap,
+            state='readonly'
+        )
+        self.colormap_option['values'] = COLOR_MAPS
+
         save_regions_button = ttk.Button(
             file_chooser_button_frame,
             text='Save Plot',
@@ -154,6 +172,12 @@ class Application(tk.Frame):
         self.canvas.bind("<B3-Motion>", self.pan_image)
         self.canvas.bind("<ButtonRelease-3>", self.on_pan_button_release)
 
+    def toggle_cmap_option(self, event):
+        if self.colormap_option.winfo_ismapped():
+            self.colormap_option.pack_forget()
+        else:
+            self.colormap_option.pack(side=tk.LEFT, fill='x', expand=False)
+
     def load_csv_files(self):
         self.csv_files = filedialog.askopenfiles()
         if len(self.csv_files) == 0:
@@ -202,7 +226,7 @@ class Application(tk.Frame):
         )
         heat_map_ax = sns.heatmap(
             df[df.columns[~df.columns.isin(['mean'])]],  # exclude mean col from plot
-            cmap='bwr',
+            cmap=self.current_colormap.get(),
             cbar_kws={"aspect": 80}
         )
         heat_map_ax.set_ylim((self.data.shape[0], 0))
