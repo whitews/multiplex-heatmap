@@ -197,6 +197,9 @@ class Application(tk.Frame):
             data_frames.append(pd.read_csv(f))
         df = pd.concat(data_frames)
 
+        # make sure 'Sample' column is a string
+        df.Sample = df.Sample.astype('str')
+
         del_pattern = r"(Standard|Background|Control|custom|overlapping|no stim)"
         sample_filter = df.Sample.str.contains(del_pattern)
         df = df[~sample_filter]
